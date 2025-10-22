@@ -9,7 +9,7 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   // Get all receipts
-  const { data: receipts, count: receiptCount } = await supabase
+  const { data: receipts} = await supabase
     .from('receipts')
     .select('*', { count: 'exact' })
     .eq('user_id', user!.id)

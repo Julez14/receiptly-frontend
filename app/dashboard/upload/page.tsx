@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
@@ -26,7 +25,6 @@ export default function UploadPage() {
   const [ocrData, setOcrData] = useState<ReceiptData | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
 
-  const router = useRouter()
   const supabase = createClient()
 
   // Handle file selection
