@@ -524,7 +524,7 @@ export default function UploadPage() {
           </div>
 
           {/* Camera Controls */}
-          <div className="p-6 bg-black text-center shrink-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          <div className="p-6 pb-24 bg-black text-center shrink-0">
             <button
               onClick={capturePhoto}
               className="bg-white text-black w-16 h-16 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors mx-auto"
