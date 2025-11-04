@@ -488,7 +488,7 @@ export default function UploadPage() {
       {showCamera && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col h-screen w-screen">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 bg-black text-white shrink-0">
+          <div className="flex items-center justify-between p-4 bg-black text-white shrink-0" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
             <button
               onClick={closeCamera}
               className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
@@ -524,7 +524,7 @@ export default function UploadPage() {
           </div>
 
           {/* Camera Controls */}
-          <div className="p-6 bg-black text-center shrink-0">
+          <div className="p-6 bg-black text-center shrink-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
             <button
               onClick={capturePhoto}
               className="bg-white text-black w-16 h-16 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors mx-auto"
