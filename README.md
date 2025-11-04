@@ -23,11 +23,13 @@ npm install
 ## Step 3: Configure Environment Variables
 
 1. Copy the example environment file:
+
    ```bash
    cp .env.local.example .env.local
    ```
 
 2. Edit `.env.local` and add your Supabase credentials:
+
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
@@ -35,7 +37,7 @@ npm install
 
 3. (Optional) Configure OCR API endpoint:
    ```
-   NEXT_PUBLIC_OCR_API_URL=http://your-backend-api.com/api/ocr
+   NEXT_PUBLIC_API_URL=http://your-backend-api.com/api/ocr
    ```
 
 ## Step 5: Verify Storage Bucket
@@ -59,7 +61,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 3. You'll be redirected to the dashboard
 4. Try uploading a receipt image
 5. View your receipts in the "Receipts" page
-
 
 ## Troubleshooting
 
@@ -96,6 +97,7 @@ When deploying to production:
 ## Support
 
 For issues or questions, refer to:
+
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Supabase Documentation](https://supabase.com/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
