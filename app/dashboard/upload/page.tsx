@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -24,8 +24,102 @@ export default function UploadPage() {
   const [preview, setPreview] = useState<string | null>(null)
   const [ocrData, setOcrData] = useState<ReceiptData | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const supabase = createClient()
+
+  // Open camera using getUserMedia
+  const openCamera = async () => {
+    try {
+      console.log('Requesting camera access...')
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' }, // Prefer rear camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      })
+      
+      console.log('Camera stream obtained:', stream.getVideoTracks().length, 'video tracks')
+      setCameraStream(stream)
+      setShowCamera(true)
+      
+      // Wait a bit for modal to render, then set video source
+      setTimeout(() => {
+        if (videoRef.current && stream) {
+          console.log('Setting video srcObject')
+          videoRef.current.srcObject = stream
+          videoRef.current.play().catch(e => console.error('Video play error:', e))
+        }
+      }, 100)
+      
+    } catch (error) {
+      console.error('Camera access error:', error)
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          toast.error('Camera permission denied. Please enable camera access.')
+        } else if (error.name === 'NotFoundError') {
+          toast.error('No camera found on this device.')
+        } else {
+          toast.error('Unable to access camera: ' + error.message)
+        }
+      }
+    }
+  }
+
+  // Close camera and clean up
+  const closeCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop())
+      setCameraStream(null)
+    }
+    setShowCamera(false)
+  }
+
+  // Capture photo from video stream
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return
+
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+
+    if (!context) return
+
+    // Set canvas size to video size
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+
+    // Draw video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    // Convert canvas to blob and create file
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const timestamp = Date.now()
+        const capturedFile = new File([blob], `receipt-${timestamp}.jpg`, {
+          type: 'image/jpeg'
+        })
+        
+        // Use existing file change handler
+        setFile(capturedFile)
+        
+        // Create preview
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setPreview(reader.result as string)
+        }
+        reader.readAsDataURL(capturedFile)
+        
+        // Close camera
+        closeCamera()
+      }
+    }, 'image/jpeg', 0.9)
+  }
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,6 +287,14 @@ export default function UploadPage() {
     setOcrData(null)
   }
 
+  // Retake photo - clear current file and reopen camera
+  const handleRetakePhoto = () => {
+    setFile(null)
+    setPreview(null)
+    setOcrData(null)
+    openCamera()
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Fixed Header */}
@@ -254,6 +356,36 @@ export default function UploadPage() {
               </div>
             </div>
           </label>
+
+          {/* Take Photo button */}
+          <button
+            type="button"
+            onClick={openCamera}
+            disabled={analyzing}
+            aria-label="Take a photo of your receipt using your camera"
+            className="w-full bg-black text-white font-medium py-3 rounded-lg mt-4 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h2l1.2-1.8A2 2 0 0110 2h4a2 2 0 011.8 1.2L17 5h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm9 10a5 5 0 100-10 5 5 0 000 10z" />
+            </svg>
+            Take Photo
+          </button>
+
+          {/* Retake Photo button - show when file exists */}
+          {file && (
+            <button
+              type="button"
+              onClick={handleRetakePhoto}
+              disabled={analyzing}
+              aria-label="Retake the photo using your camera"
+              className="w-full bg-gray-200 text-black font-medium py-3 rounded-lg mt-2 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Retake Photo
+            </button>
+          )}
 
           {/* Preview Image */}
           {preview && (
@@ -351,6 +483,61 @@ export default function UploadPage() {
         </>
       )}
       </div>
+
+      {/* Camera Modal */}
+      {showCamera && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col h-screen w-screen">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 bg-black text-white shrink-0">
+            <button
+              onClick={closeCamera}
+              className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Close camera"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="text-lg font-medium">Take Receipt Photo</h2>
+            <div className="w-10" /> {/* Spacer for centering */}
+          </div>
+
+          {/* Video Preview Container */}
+          <div className="flex-1 relative overflow-hidden min-h-0">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover bg-gray-900"
+              onLoadedMetadata={() => {
+                console.log('Video loaded:', videoRef.current?.videoWidth, videoRef.current?.videoHeight)
+              }}
+            />
+            
+            {/* Overlay guide */}
+            <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg flex items-center justify-center pointer-events-none">
+              <div className="text-white text-center bg-black bg-opacity-50 p-4 rounded-lg">
+                <p className="text-sm">Position receipt within frame</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Camera Controls */}
+          <div className="p-6 bg-black text-center shrink-0">
+            <button
+              onClick={capturePhoto}
+              className="bg-white text-black w-16 h-16 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors mx-auto"
+              aria-label="Capture photo"
+            >
+              <div className="w-8 h-8 bg-black rounded-full"></div>
+            </button>
+          </div>
+
+          {/* Hidden canvas for photo capture */}
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+      )}
     </div>
   )
 }
