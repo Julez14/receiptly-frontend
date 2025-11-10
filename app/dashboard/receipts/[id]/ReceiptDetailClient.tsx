@@ -27,9 +27,58 @@ type Receipt = {
 
 export default function ReceiptDetailClient({ receipt }: { receipt: Receipt }) {
   const [deleting, setDeleting] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  const handleDownloadCSV = async () => {
+    try {
+      setDownloading(true)
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('Not authenticated')
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+      const res = await fetch(
+        `${baseUrl}/receipts/${receipt.id}/export/csv`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      if (!res.ok) {
+        let message = 'Failed to download CSV'
+        try {
+          const err = await res.json()
+          if (err?.error) message = err.error
+        } catch {}
+        throw new Error(message)
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `receipt_${receipt.id}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (e) {
+      console.error(e)
+      toast.error(e instanceof Error ? e.message : 'Failed to download CSV')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const handleDelete = async () => {
     setShowDeleteModal(false)
@@ -149,6 +198,14 @@ export default function ReceiptDetailClient({ receipt }: { receipt: Receipt }) {
         </div>
 
         {/* Delete Button */}
+        <button
+          onClick={handleDownloadCSV}
+          disabled={downloading}
+          className="w-full bg-black text-white font-medium py-3 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {downloading ? 'Downloading…' : 'Download CSV'}
+        </button>
+
         <button
           onClick={() => setShowDeleteModal(true)}
           disabled={deleting}
